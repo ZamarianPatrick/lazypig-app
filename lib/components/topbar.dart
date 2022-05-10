@@ -20,17 +20,29 @@ class TopBar extends StatefulWidget implements PreferredSizeWidget {
 class _TopBar extends State<TopBar> {
   @override
   Widget build(BuildContext context) {
+    var size = MediaQuery.of(context).size;
+    var fontSize = (size.width <= 380)
+        ? (size.width <= 280)
+            ? 18.0
+            : 24.0
+        : 28.0;
     return AppBar(
+      centerTitle: true,
       title: RichText(
+        textAlign: TextAlign.center,
         text: TextSpan(
-          style: const TextStyle(
-              fontWeight: FontWeight.bold, fontSize: 22, color: Colors.white),
+          style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: fontSize,
+              color: Colors.white),
           children: [
-            const TextSpan(
-              text: 'Lazy Pig - ',
+            WidgetSpan(
+              child: Icon(widget.icon, size: fontSize + 4),
             ),
             const WidgetSpan(
-              child: Icon(Icons.local_florist, size: 26),
+              child: SizedBox(
+                width: 5,
+              ),
             ),
             TextSpan(
               text: widget.title,

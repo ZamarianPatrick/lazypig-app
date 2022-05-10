@@ -79,16 +79,18 @@ class _PlantView extends State<PlantView> {
   @override
   Widget build(BuildContext context) {
     var size = MediaQuery.of(context).size;
-    var count = (size.width ~/ (350 + 20));
-    var width = math.min((size.width / count) - (20 * count), size.width - 20);
-
+    var count = (size.width ~/ math.min(size.width, 400));
+    var width = (size.width / count) - ((size.width <= 400) ? 15 : 10 * count);
     var totalWidth = width * count + (20 * (count - 1));
     var gap = (size.width - totalWidth) / 2;
+    if (size.width <= 280) {
+      gap = 0;
+    }
 
     return Scaffold(
         appBar: const TopBar(title: 'Pflanzen', icon: Icons.local_florist),
         body: Padding(
-          padding: EdgeInsets.fromLTRB(gap, 20, 20, 0),
+          padding: EdgeInsets.fromLTRB(gap, 20, gap, 0),
           child: Column(
             children: [
               Expanded(
@@ -148,6 +150,7 @@ class _PlantView extends State<PlantView> {
 class _PlantCard extends StatelessWidget {
   final Map<String, dynamic> plant;
   final double width;
+
   const _PlantCard({
     Key? key,
     required this.plant,
@@ -156,6 +159,10 @@ class _PlantCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    var levelSymbolWidth = (width <= 380) ? 10.0 : 15.0;
+    var cardTitleFontSize = (width <= 300) ? 14.0 : 16.0;
+    var inset = (width <= 380) ? 0.0 : 5.0;
+
     return SizedBox(
       key: ValueKey(plant["id"]),
       width: width,
@@ -163,102 +170,114 @@ class _PlantCard extends StatelessWidget {
           color: const Color(0xFFF2F2F2),
           elevation: 4,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(5, 5, 5, 10),
+            padding: EdgeInsets.fromLTRB(inset, 5, inset, 10),
             child: Column(children: <Widget>[
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: <
-                  Widget>[
-                Expanded(
-                    flex: 1,
-                    child: Padding(
-                      padding: const EdgeInsets.all(5),
-                      child: IconTheme(
-                        data: plant["active"]
-                            ? const IconThemeData(color: Colors.green)
-                            : const IconThemeData(color: Colors.red),
-                        child: const Icon(Icons.power_settings_new),
-                      ),
-                    )),
-                Expanded(
-                    flex: 4,
-                    child: Column(children: <Widget>[
-                      Row(children: <Widget>[
-                        Expanded(
-                            flex: 2,
-                            child: Column(children: <Widget>[
-                              _PlantTitle(title: plant['name'], fontSize: 16),
-                              const SizedBox(
-                                height: 10,
-                              ),
-                              Container(
-                                color: MyColors.primary,
-                                height: 2,
-                              )
-                            ])),
-                      ]),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(0, 10, 0, 10),
+              Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Expanded(
+                        flex: 1,
+                        child: Padding(
+                          padding: EdgeInsets.all(inset),
+                          child: IconTheme(
+                            data: plant["active"]
+                                ? const IconThemeData(color: Colors.green)
+                                : const IconThemeData(color: Colors.red),
+                            child: const Icon(Icons.power_settings_new),
+                          ),
+                        )),
+                    Expanded(
+                        flex: (width <= 320)
+                            ? (width <= 300)
+                                ? 2
+                                : 3
+                            : 4,
                         child: Column(children: <Widget>[
                           Row(children: <Widget>[
-                            const Icon(Icons.door_front_door_outlined),
-                            const SizedBox(width: 5),
-                            Text(plant["room"]),
+                            Expanded(
+                                flex: 2,
+                                child: Column(children: <Widget>[
+                                  _PlantTitle(
+                                      title: plant['name'],
+                                      fontSize: cardTitleFontSize),
+                                  const SizedBox(
+                                    height: 10,
+                                  ),
+                                  Container(
+                                    color: MyColors.primary,
+                                    height: 2,
+                                  )
+                                ])),
                           ]),
-                          const SizedBox(height: 10),
-                          Row(children: <Widget>[
-                            const Icon(Icons.library_books_outlined),
-                            const SizedBox(width: 5),
-                            Text(plant["templateName"]),
-                          ])
-                        ]),
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: () {},
-                        icon: const Icon(Icons.edit),
-                        label: const Text('Verwalten'),
-                        style: ElevatedButton.styleFrom(
-                          primary: MyColors.primary,
-                        ),
-                      ),
-                    ])),
-                Expanded(
-                    child: Column(
-                  children: <Widget>[
-                    Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: <Widget>[
-                          Text(plant["battery"].toString() + "%"),
-                          const SizedBox(
-                            width: 5,
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(0, 10, 0, 10),
+                            child: Column(children: <Widget>[
+                              Row(children: <Widget>[
+                                const Icon(Icons.door_front_door_outlined),
+                                const SizedBox(width: 5),
+                                Text(plant["room"]),
+                              ]),
+                              const SizedBox(height: 10),
+                              Row(children: <Widget>[
+                                const Icon(Icons.library_books_outlined),
+                                const SizedBox(width: 5),
+                                Text(plant["templateName"]),
+                              ])
+                            ]),
                           ),
-                          ZoomableLevelBar(
-                              title: "Batteriestand: ${plant["battery"]}%",
-                              level: plant["battery"],
-                              onCreate: (level) =>
-                                  _BatteryLevel(level, Colors.black)),
-                        ]),
-                    Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: <Widget>[
-                          Text(plant["water"].toString() + "%"),
-                          const SizedBox(
-                            width: 5,
+                          ElevatedButton.icon(
+                            onPressed: () {},
+                            icon: const Icon(Icons.edit),
+                            label: const Text('Verwalten'),
+                            style: ElevatedButton.styleFrom(
+                              primary: MyColors.primary,
+                            ),
                           ),
-                          SizedBox(
-                              width: 15,
-                              height: 15 * 3,
-                              child: ZoomableLevelBar(
-                                title: "Wasserfüllstand: ${plant["water"]}%",
-                                level: plant["water"],
-                                onCreate: (level) =>
-                                    _WaterLevel(level, Colors.black),
-                              )),
-                        ]),
-                  ],
-                )),
-                const SizedBox(
-                  width: 5,
-                )
-              ]),
+                        ])),
+                    Expanded(
+                        child: Column(
+                      children: <Widget>[
+                        Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: <Widget>[
+                              Text(plant["battery"].toString() + "%"),
+                              const SizedBox(
+                                width: 5,
+                              ),
+                              SizedBox(
+                                  width: levelSymbolWidth,
+                                  height: levelSymbolWidth * 3,
+                                  child: ZoomableLevelBar(
+                                      title:
+                                          "Batteriestand: ${plant["battery"]}%",
+                                      level: plant["battery"],
+                                      onCreate: (level) =>
+                                          _BatteryLevel(level, Colors.black)))
+                            ]),
+                        Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: <Widget>[
+                              Text(plant["water"].toString() + "%"),
+                              const SizedBox(
+                                width: 5,
+                              ),
+                              SizedBox(
+                                  width: levelSymbolWidth,
+                                  height: levelSymbolWidth * 3,
+                                  child: ZoomableLevelBar(
+                                    title:
+                                        "Wasserfüllstand: ${plant["water"]}%",
+                                    level: plant["water"],
+                                    onCreate: (level) =>
+                                        _WaterLevel(level, Colors.black),
+                                  )),
+                            ]),
+                      ],
+                    )),
+                    const SizedBox(
+                      width: 5,
+                    )
+                  ]),
             ]),
           )),
     );
@@ -323,7 +342,11 @@ class ZoomableLevelBar extends StatelessWidget {
                         const SizedBox(height: 7),
                         Text(
                           title,
-                          style: const TextStyle(fontSize: 24),
+                          style: TextStyle(
+                              fontSize:
+                                  (MediaQuery.of(context).size.width <= 400)
+                                      ? 18
+                                      : 24),
                         ),
                         const SizedBox(height: 10),
                         SizedBox(

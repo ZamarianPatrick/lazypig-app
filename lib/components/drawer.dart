@@ -11,8 +11,8 @@ class LazyPigDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: BoxConstraints(
-          minWidth: 150, maxWidth: MediaQuery.of(context).size.width * 0.5),
+      constraints:
+          BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.6),
       child: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
@@ -23,7 +23,11 @@ class LazyPigDrawer extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: MyColors.primary,
                 ),
-                child: Text('Menü'),
+                child: FittedBox(
+                    fit: BoxFit.contain,
+                    child: Text('Lazy Pig',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, color: Colors.white))),
               ),
             ),
             CustomListTile(
@@ -51,10 +55,8 @@ class LazyPigDrawer extends StatelessWidget {
                 'Über',
                 () => {
                       Navigator.pop(context),
-                      Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const AboutView()))
+                      Navigator.push(context,
+                          MaterialPageRoute(builder: (context) => AboutView()))
                     }),
           ],
         ),
