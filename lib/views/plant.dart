@@ -78,20 +78,33 @@ class _PlantView extends State<PlantView> {
 
   @override
   Widget build(BuildContext context) {
+    var size = MediaQuery.of(context).size;
+    var count = (size.width ~/ (350 + 20));
+    var width = math.min((size.width / count) - (20 * count), size.width - 20);
+
+    var totalWidth = width * count + (20 * (count - 1));
+    var gap = (size.width - totalWidth) / 2;
+
     return Scaffold(
         appBar: const TopBar(title: 'Pflanzen', icon: Icons.local_florist),
         body: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+          padding: EdgeInsets.fromLTRB(gap, 20, 20, 0),
           child: Column(
             children: [
               Expanded(
                   child: SingleChildScrollView(
                 child: _foundPlants.isNotEmpty
-                    ? ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: _foundPlants.length,
-                        itemBuilder: (context, index) =>
-                            _PlantCard(plant: _foundPlants[index]))
+                    ? Wrap(
+                        spacing: 20,
+                        runSpacing: 20,
+                        children: [
+                          for (var plant in _foundPlants)
+                            _PlantCard(
+                              plant: plant,
+                              width: width,
+                            )
+                        ],
+                      )
                     : const Text(
                         'No results found',
                         style: TextStyle(fontSize: 24),
@@ -134,107 +147,121 @@ class _PlantView extends State<PlantView> {
 
 class _PlantCard extends StatelessWidget {
   final Map<String, dynamic> plant;
-
+  final double width;
   const _PlantCard({
     Key? key,
     required this.plant,
+    required this.width,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-        key: ValueKey(plant["id"]),
-        color: const Color(0xFFF2F2F2),
-        elevation: 4,
-        margin: const EdgeInsets.symmetric(vertical: 10),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(5, 5, 5, 10),
-          child: Column(children: <Widget>[
-            Row(children: <Widget>[
-              Expanded(
-                  child: Align(
-                alignment: Alignment.centerLeft,
-                child: IconTheme(
-                  data: plant["active"]
-                      ? const IconThemeData(color: Colors.green)
-                      : const IconThemeData(color: Colors.red),
-                  child: const Icon(Icons.power_settings_new),
-                ),
-              )),
-              Expanded(
-                  flex: 2,
-                  child: Column(children: <Widget>[
-                    _PlantTitle(title: plant['name'], fontSize: 16),
-                    const SizedBox(
-                      height: 10,
-                    ),
-                    Container(
-                      color: MyColors.primary,
-                      height: 2,
-                    )
-                  ])),
-              Expanded(
-                  child: Column(
-                children: <Widget>[
-                  Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: <Widget>[
-                        Text(plant["battery"].toString() + "%"),
-                        const SizedBox(
-                          width: 5,
-                        ),
-                        SizedBox(
-                            width: 15,
-                            height: 15 * 3,
-                            child: CustomPaint(
-                              painter:
-                                  _BatteryLevel(plant["battery"], Colors.black),
-                            )),
+    return SizedBox(
+      key: ValueKey(plant["id"]),
+      width: width,
+      child: Card(
+          color: const Color(0xFFF2F2F2),
+          elevation: 4,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(5, 5, 5, 10),
+            child: Column(children: <Widget>[
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: <
+                  Widget>[
+                Expanded(
+                    flex: 1,
+                    child: Padding(
+                      padding: const EdgeInsets.all(5),
+                      child: IconTheme(
+                        data: plant["active"]
+                            ? const IconThemeData(color: Colors.green)
+                            : const IconThemeData(color: Colors.red),
+                        child: const Icon(Icons.power_settings_new),
+                      ),
+                    )),
+                Expanded(
+                    flex: 4,
+                    child: Column(children: <Widget>[
+                      Row(children: <Widget>[
+                        Expanded(
+                            flex: 2,
+                            child: Column(children: <Widget>[
+                              _PlantTitle(title: plant['name'], fontSize: 16),
+                              const SizedBox(
+                                height: 10,
+                              ),
+                              Container(
+                                color: MyColors.primary,
+                                height: 2,
+                              )
+                            ])),
                       ]),
-                  Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: <Widget>[
-                        Text(plant["water"].toString() + "%"),
-                        const SizedBox(
-                          width: 5,
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(0, 10, 0, 10),
+                        child: Column(children: <Widget>[
+                          Row(children: <Widget>[
+                            const Icon(Icons.door_front_door_outlined),
+                            const SizedBox(width: 5),
+                            Text(plant["room"]),
+                          ]),
+                          const SizedBox(height: 10),
+                          Row(children: <Widget>[
+                            const Icon(Icons.library_books_outlined),
+                            const SizedBox(width: 5),
+                            Text(plant["templateName"]),
+                          ])
+                        ]),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: () {},
+                        icon: const Icon(Icons.edit),
+                        label: const Text('Verwalten'),
+                        style: ElevatedButton.styleFrom(
+                          primary: MyColors.primary,
                         ),
-                        SizedBox(
-                            width: 15,
-                            height: 15 * 3,
-                            child: CustomPaint(
-                              painter:
-                                  _WaterLevel(plant["water"], Colors.black),
-                            )),
-                      ]),
-                ],
-              )),
-            ]),
-            Padding(
-              padding: const EdgeInsets.only(left: 10),
-              child: Column(children: <Widget>[
-                Row(children: <Widget>[
-                  const Icon(Icons.door_front_door_outlined),
-                  const SizedBox(width: 5),
-                  Text(plant["room"]),
-                ]),
-                const SizedBox(height: 10),
-                Row(children: <Widget>[
-                  const Icon(Icons.library_books_outlined),
-                  const SizedBox(width: 5),
-                  Text(plant["templateName"]),
-                ])
+                      ),
+                    ])),
+                Expanded(
+                    child: Column(
+                  children: <Widget>[
+                    Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: <Widget>[
+                          Text(plant["battery"].toString() + "%"),
+                          const SizedBox(
+                            width: 5,
+                          ),
+                          SizedBox(
+                              width: 15,
+                              height: 15 * 3,
+                              child: CustomPaint(
+                                painter: _BatteryLevel(
+                                    plant["battery"], Colors.black),
+                              )),
+                        ]),
+                    Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: <Widget>[
+                          Text(plant["water"].toString() + "%"),
+                          const SizedBox(
+                            width: 5,
+                          ),
+                          SizedBox(
+                              width: 15,
+                              height: 15 * 3,
+                              child: CustomPaint(
+                                painter:
+                                    _WaterLevel(plant["water"], Colors.black),
+                              )),
+                        ]),
+                  ],
+                )),
+                const SizedBox(
+                  width: 5,
+                )
               ]),
-            ),
-            ElevatedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.edit),
-              label: const Text('Verwalten'),
-              style: ElevatedButton.styleFrom(
-                primary: MyColors.primary,
-              ),
-            ),
-          ]),
-        ));
+            ]),
+          )),
+    );
   }
 }
 
