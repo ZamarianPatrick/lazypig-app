@@ -41,7 +41,7 @@ class _PlantView extends State<PlantView> {
       "room": "Zimmer 212",
       "templateName": "Calluna",
       "battery": 10,
-      "water": 92,
+      "water": 100,
     },
     {
       "id": 4,
@@ -230,13 +230,11 @@ class _PlantCard extends StatelessWidget {
                           const SizedBox(
                             width: 5,
                           ),
-                          SizedBox(
-                              width: 15,
-                              height: 15 * 3,
-                              child: CustomPaint(
-                                painter: _BatteryLevel(
-                                    plant["battery"], Colors.black),
-                              )),
+                          ZoomableLevelBar(
+                              title: "Batteriestand: ${plant["battery"]}%",
+                              level: plant["battery"],
+                              onCreate: (level) =>
+                                  _BatteryLevel(level, Colors.black)),
                         ]),
                     Row(
                         mainAxisAlignment: MainAxisAlignment.end,
@@ -248,9 +246,11 @@ class _PlantCard extends StatelessWidget {
                           SizedBox(
                               width: 15,
                               height: 15 * 3,
-                              child: CustomPaint(
-                                painter:
-                                    _WaterLevel(plant["water"], Colors.black),
+                              child: ZoomableLevelBar(
+                                title: "Wasserfüllstand: ${plant["water"]}%",
+                                level: plant["water"],
+                                onCreate: (level) =>
+                                    _WaterLevel(level, Colors.black),
                               )),
                         ]),
                   ],
@@ -296,11 +296,120 @@ class _PlantTitle extends StatelessWidget {
   }
 }
 
-class _BatteryLevel extends CustomPainter {
-  int batteryLevel;
-  Color mainColor;
+class ZoomableLevelBar extends StatelessWidget {
+  final String title;
+  final int level;
+  final LevelBar Function(int level) onCreate;
 
-  _BatteryLevel(this.batteryLevel, this.mainColor);
+  const ZoomableLevelBar(
+      {Key? key,
+      required this.title,
+      required this.level,
+      required this.onCreate})
+      : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: () => showDialog(
+              context: context,
+              builder: (BuildContext context) => Dialog(
+                      child: SizedBox(
+                    height: 195,
+                    child: Column(
+                      children: <Widget>[
+                        const SizedBox(height: 7),
+                        Text(
+                          title,
+                          style: const TextStyle(fontSize: 24),
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                            width: 50,
+                            height: 150,
+                            child: LevelAnimation(
+                              endLevel: level + 0.0,
+                              onCreate: (int level) {
+                                return CustomPaint(painter: onCreate(level));
+                              },
+                            ))
+                      ],
+                    ),
+                  ))),
+          child: SizedBox(
+              width: 15,
+              height: 15 * 3,
+              child: CustomPaint(
+                painter: onCreate(level),
+              )),
+        ));
+  }
+}
+
+abstract class LevelBar extends CustomPainter {
+  final int level;
+  final Color mainColor;
+  LevelBar(this.level, this.mainColor);
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return (oldDelegate as LevelBar).level != level ||
+        (oldDelegate).mainColor != mainColor;
+  }
+}
+
+class LevelAnimation extends StatefulWidget {
+  final double endLevel;
+  final Widget Function(int level) onCreate;
+
+  const LevelAnimation(
+      {Key? key, required this.endLevel, required this.onCreate})
+      : super(key: key);
+
+  @override
+  _LevelAnimation createState() => _LevelAnimation();
+}
+
+class _LevelAnimation extends State<LevelAnimation>
+    with SingleTickerProviderStateMixin {
+  double level = 0.0;
+
+  late Animation<double> _animation;
+  late AnimationController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = AnimationController(
+        duration: const Duration(milliseconds: 1000), vsync: this)
+      ..addListener(() {
+        setState(() {
+          level = _animation.value;
+        });
+      });
+
+    controller.forward();
+    controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        controller.dispose();
+      } else if (status == AnimationStatus.dismissed) {
+        controller.forward();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _animation = Tween<double>(begin: 0.0, end: widget.endLevel)
+        .animate(CurvedAnimation(parent: controller, curve: Curves.decelerate));
+    return widget.onCreate(level.round());
+  }
+}
+
+class _BatteryLevel extends LevelBar {
+  _BatteryLevel(int level, Color mainColor) : super(level, mainColor);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -328,9 +437,9 @@ class _BatteryLevel extends CustomPainter {
 
     var bottom = (size.height * 0.8 - 1.0);
     var fullLength = (size.height * 0.8 - 1.0) - (size.height * 0.2 + 1.2);
-    var batteryLength = fullLength * (batteryLevel / 100);
+    var batteryLength = fullLength * (level / 100);
 
-    var batteryColor = (batteryLevel <= 20) ? Colors.red : Colors.green;
+    var batteryColor = (level <= 20) ? Colors.red : Colors.green;
 
     canvas.drawRRect(
         RRect.fromLTRBR(
@@ -339,19 +448,10 @@ class _BatteryLevel extends CustomPainter {
           ..color = batteryColor
           ..style = PaintingStyle.fill);
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return (oldDelegate as _BatteryLevel).batteryLevel != batteryLevel ||
-        (oldDelegate).mainColor != mainColor;
-  }
 }
 
-class _WaterLevel extends CustomPainter {
-  int waterLevel;
-  Color mainColor;
-
-  _WaterLevel(this.waterLevel, this.mainColor);
+class _WaterLevel extends LevelBar {
+  _WaterLevel(int level, Color mainColor) : super(level, mainColor);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -362,7 +462,7 @@ class _WaterLevel extends CustomPainter {
 
     var bottom = (size.height * 0.8);
     var fullLength = (size.height * 0.8) - (size.height * 0.1);
-    var waterLength = fullLength * (waterLevel / 100);
+    var waterLength = fullLength * (level / 100);
     var waterTop = bottom - waterLength;
 
     Path path = Path();
@@ -442,11 +542,5 @@ class _WaterLevel extends CustomPainter {
 
     canvas.drawLine(Offset(size.width * 0.3, size.height * 0.06),
         Offset(size.width * 0.7, size.height * 0.06), paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return (oldDelegate as _WaterLevel).waterLevel != waterLevel ||
-        (oldDelegate).mainColor != mainColor;
   }
 }
