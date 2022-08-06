@@ -41,7 +41,7 @@ class _PlantView extends State<PlantView> {
       "room": "Zimmer 212",
       "templateName": "Calluna",
       "battery": 10,
-      "water": 100,
+      "water": 94,
     },
     {
       "id": 4,
