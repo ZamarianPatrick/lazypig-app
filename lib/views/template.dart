@@ -52,7 +52,7 @@ class _TemplateView extends State<TemplateView> {
       if (result.hasException) {
         GraphQLError? err = result.exception?.graphqlErrors.first;
         if (err?.message == "FOREIGN KEY constraint failed") {
-          showAlertDialog(_scaffoldKey, "Fehler",
+          showMessageDialog(_scaffoldKey, "Fehler",
               "Ein Template wird noch von einer Pflanze verwendet. Bitte lösche zuerst die Pflanze.");
         }
       } else {
@@ -112,11 +112,10 @@ class _TemplateView extends State<TemplateView> {
                                   onChanged: (newValue) {
                                     setState(() {
                                       _allSelected = newValue!;
-                                      for (int i = 0;
-                                          i < _selected.length;
-                                          i++) {
-                                        _selected[i] = newValue;
-                                      }
+
+                                      _selected.forEach((key, value) {
+                                        _selected[key] = newValue;
+                                      });
 
                                       if (newValue == true) {
                                         _selectedCount = _selected.length;
@@ -128,7 +127,23 @@ class _TemplateView extends State<TemplateView> {
                               const Text('Name'),
                               const Spacer(),
                               ElevatedButton.icon(
-                                onPressed: () {},
+                                onPressed: () {
+                                  List<int> ids = [];
+                                  _selected.forEach((id, isSelected) {
+                                    if (isSelected) {
+                                      ids.add(id);
+                                    }
+                                  });
+
+                                  showConfirmDialog(
+                                      _scaffoldKey,
+                                      "Bestätigung",
+                                      "Möchstest du die " +
+                                          _selectedCount.toString() +
+                                          " Vorlage(n) wirklich löschen?", () {
+                                    deleteTemplates(ids);
+                                  });
+                                },
                                 icon: const Icon(Icons.edit),
                                 label: Text(_selectedCount.toString() +
                                     ' Ausgewählte löschen'),
@@ -145,8 +160,8 @@ class _TemplateView extends State<TemplateView> {
 
                       final template = _templates[index];
 
-                      if (_selected[index] == null) {
-                        _selected[index] = false;
+                      if (_selected[template['id']] == null) {
+                        _selected[template['id']] = false;
                       }
 
                       return Container(
@@ -157,11 +172,11 @@ class _TemplateView extends State<TemplateView> {
                         child: Row(
                           children: [
                             Checkbox(
-                                value: _selected[index],
+                                value: _selected[template['id']],
                                 activeColor: MyColors.primary,
                                 onChanged: (newValue) {
                                   setState(() {
-                                    _selected[index] = newValue!;
+                                    _selected[template['id']] = newValue!;
                                     if (newValue == true) {
                                       _selectedCount++;
                                     } else {
@@ -179,50 +194,11 @@ class _TemplateView extends State<TemplateView> {
                             const Spacer(),
                             IconButton(
                                 onPressed: () {
-                                  showDialog(
-                                      context: context,
-                                      builder: (context) {
-                                        return AlertDialog(
-                                          content: Column(
-                                            children: [
-                                              const Text(
-                                                  "Möchtest du die Vorlage wirklich löschen?"),
-                                              Row(
-                                                children: [
-                                                  ElevatedButton(
-                                                    onPressed: () {
-                                                      Navigator.of(context)
-                                                          .pop();
-                                                    },
-                                                    child:
-                                                        const Text('Abbrechen'),
-                                                    style: ElevatedButton
-                                                        .styleFrom(
-                                                      primary:
-                                                          MyColors.secondary,
-                                                    ),
-                                                  ),
-                                                  const Spacer(),
-                                                  ElevatedButton(
-                                                    onPressed: () async {
-                                                      deleteTemplates(
-                                                          [template['id']]);
-                                                      Navigator.of(context)
-                                                          .pop();
-                                                    },
-                                                    child: const Text(
-                                                        'Bestätigen'),
-                                                    style: ElevatedButton
-                                                        .styleFrom(
-                                                      primary: MyColors.primary,
-                                                    ),
-                                                  )
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      });
+                                  showConfirmDialog(_scaffoldKey, "Bestätigung",
+                                      "Möchtest du die Vorlage wirklich löschen?",
+                                      () {
+                                    deleteTemplates([template['id']]);
+                                  });
                                 },
                                 icon: const Icon(
                                   Icons.delete_rounded,
