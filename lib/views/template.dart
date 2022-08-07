@@ -23,7 +23,7 @@ class _TemplateView extends State<TemplateView> {
   List<dynamic> _templates = [];
   bool _allSelected = false;
   int _selectedCount = 0;
-  final Map<int, bool> _selected = {};
+  Map<int, bool> _selected = {};
 
   fetchTemplates() {
     gqlClient
@@ -56,6 +56,7 @@ class _TemplateView extends State<TemplateView> {
               "Ein Template wird noch von einer Pflanze verwendet. Bitte lösche zuerst die Pflanze.");
         }
       } else {
+        _selected = {};
         fetchTemplates();
       }
     });
