@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
-import 'package:lazy_pig/views/template.dart';
+import 'package:lazy_pig/views/plant.dart';
 
 import 'globals.dart';
 
@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget {
       client: gqlClientNotifier,
       child: const MaterialApp(
         title: _title,
-        home: TemplateView(),
+        home: PlantView(),
         debugShowCheckedModeBanner: false,
       ),
     );

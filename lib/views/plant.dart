@@ -1,9 +1,15 @@
+import 'dart:convert';
+import 'dart:developer';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:lazy_pig/colors.dart';
 import 'package:lazy_pig/components/drawer.dart';
 import 'package:lazy_pig/components/topbar.dart';
+
+import '../globals.dart';
+import '../graphql.dart';
 
 class PlantView extends StatefulWidget {
   const PlantView({Key? key}) : super(key: key);
@@ -14,6 +20,9 @@ class PlantView extends StatefulWidget {
 
 class _PlantView extends State<PlantView> {
   int _selectedIndex = 0;
+
+  List<dynamic> _stations = [];
+  Map<int, bool> _expanded = {};
 
   final List<Map<String, dynamic>> _allPlants = [
     {
@@ -56,6 +65,29 @@ class _PlantView extends State<PlantView> {
 
   List<Map<String, dynamic>> _foundPlants = [];
 
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  fetchStations() {
+    gqlClient
+        .query(QueryOptions(
+      document: gql(gqlGetStations()),
+      fetchPolicy: FetchPolicy.networkOnly,
+    ))
+        .catchError((error) {
+      log('failed to fetch stations',
+          name: 'lazypig.plants', error: jsonEncode(error));
+    }).then((result) {
+      setState(() {
+        _stations = result.data!['stations'];
+        for (var station in _stations) {
+          if (_expanded[station['id']] == null) {
+            _expanded[station['id']] = false;
+          }
+        }
+      });
+    });
+  }
+
   void _onItemTapped(int index) {
     List<Map<String, dynamic>> results = [];
     if (index == 0) {
@@ -70,8 +102,86 @@ class _PlantView extends State<PlantView> {
     });
   }
 
+  showStationDialog(GlobalKey<ScaffoldState> _scaffoldKey, title, station) {
+    // Create button
+
+    TextEditingController nameController = TextEditingController();
+
+    if (station['name'] != null) {
+      nameController.text = station['name']!;
+    }
+
+    Widget abortButton = ElevatedButton(
+      child: const Text("Abbrechen"),
+      style: ElevatedButton.styleFrom(primary: MyColors.secondary),
+      onPressed: () {
+        Navigator.of(_scaffoldKey.currentContext!).pop();
+      },
+    );
+
+    Widget okButton = ElevatedButton(
+      child: const Text("Speichern"),
+      style: ElevatedButton.styleFrom(primary: MyColors.primary),
+      onPressed: () {
+        station['name'] = nameController.text;
+        gqlClient
+            .mutate(
+                MutationOptions(document: gql(gqlUpdateStation()), variables: {
+          'id': station['id'],
+          'input': {'name': station['name']}
+        }))
+            .catchError((error) {
+          log('failed to update station',
+              name: 'lazypig.plants', error: jsonEncode(error));
+        }).then((result) {
+          setState(() {
+            station['name'] = result.data!['updateStation']['name'];
+          });
+        });
+        Navigator.of(_scaffoldKey.currentContext!).pop();
+      },
+    );
+
+    // Create AlertDialog
+    AlertDialog alert = AlertDialog(
+      title: Text(title),
+      content: Wrap(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                  child: TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: "Name",
+                  labelStyle: TextStyle(color: Colors.black),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: MyColors.primary),
+                  ),
+                ),
+              ))
+            ],
+          ),
+        ],
+      ),
+      actions: [
+        abortButton,
+        okButton,
+      ],
+    );
+
+    // show the dialog
+    showDialog(
+      context: _scaffoldKey.currentContext!,
+      builder: (BuildContext context) {
+        return alert;
+      },
+    );
+  }
+
   @override
   void initState() {
+    fetchStations();
     _foundPlants = _allPlants;
     super.initState();
   }
@@ -81,6 +191,7 @@ class _PlantView extends State<PlantView> {
     var size = MediaQuery.of(context).size;
     var count = (size.width ~/ math.min(size.width, 400));
     var width = (size.width / count) - ((size.width <= 400) ? 15 : 10 * count);
+    var levelSymbolWidth = (width <= 380) ? 10.0 : 15.0;
     var totalWidth = width * count + (20 * (count - 1));
     var gap = (size.width - totalWidth) / 2;
     if (size.width <= 280) {
@@ -88,6 +199,7 @@ class _PlantView extends State<PlantView> {
     }
 
     return Scaffold(
+        key: _scaffoldKey,
         appBar: const TopBar(title: 'Pflanzen', icon: Icons.local_florist),
         body: Padding(
           padding: EdgeInsets.fromLTRB(gap, 20, gap, 0),
@@ -96,20 +208,68 @@ class _PlantView extends State<PlantView> {
               Expanded(
                   child: SingleChildScrollView(
                 child: _foundPlants.isNotEmpty
-                    ? Wrap(
-                        spacing: 20,
-                        runSpacing: 20,
+                    ? ExpansionPanelList(
+                        expansionCallback: (int index, bool isExpanded) {
+                          setState(() {
+                            _expanded[_stations[index]['id']] = !isExpanded;
+                          });
+                        },
                         children: [
-                          for (var plant in _foundPlants)
-                            _PlantCard(
-                              plant: plant,
-                              width: width,
-                            )
+                          for (var station in _stations)
+                            ExpansionPanel(
+                                isExpanded: _expanded[station['id']]!,
+                                headerBuilder:
+                                    (BuildContext context, bool isExpanded) {
+                                  return Row(children: <Widget>[
+                                    const SizedBox(
+                                      width: 15,
+                                    ),
+                                    Text(station['name'],
+                                        style: const TextStyle(fontSize: 16)),
+                                    const Spacer(),
+                                    IconButton(
+                                        onPressed: () {
+                                          showStationDialog(_scaffoldKey,
+                                              "Station bearbeiten", station);
+                                        },
+                                        icon: const Icon(
+                                          Icons.edit,
+                                          color: Colors.orangeAccent,
+                                          size: 25,
+                                        )),
+                                    Text(
+                                        station["waterLevel"].toString() + "%"),
+                                    const SizedBox(
+                                      width: 5,
+                                    ),
+                                    SizedBox(
+                                        width: levelSymbolWidth,
+                                        height: levelSymbolWidth * 3,
+                                        child: ZoomableLevelBar(
+                                          title:
+                                              "Wasserfüllstand: ${station["waterLevel"]}%",
+                                          level: station["waterLevel"],
+                                          onCreate: (level) =>
+                                              _WaterLevel(level, Colors.black),
+                                        )),
+                                  ]);
+                                },
+                                body: Wrap(
+                                  spacing: 20,
+                                  runSpacing: 20,
+                                  children: [
+                                    for (var plant in station['plants'])
+                                      _PlantCard(
+                                        plant: plant,
+                                        width: width,
+                                      )
+                                  ],
+                                )),
                         ],
                       )
                     : const Text(
-                        'No results found',
-                        style: TextStyle(fontSize: 24),
+                        'Noch keine Pflanzen vorhanden',
+                        style: TextStyle(fontSize: 18),
                       ),
               ))
             ],
@@ -159,7 +319,6 @@ class _PlantCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var levelSymbolWidth = (width <= 380) ? 10.0 : 15.0;
     var cardTitleFontSize = (width <= 300) ? 14.0 : 16.0;
     var inset = (width <= 380) ? 0.0 : 5.0;
 
@@ -215,13 +374,13 @@ class _PlantCard extends StatelessWidget {
                               Row(children: <Widget>[
                                 const Icon(Icons.door_front_door_outlined),
                                 const SizedBox(width: 5),
-                                Text(plant["room"]),
+                                Text(plant["port"]),
                               ]),
                               const SizedBox(height: 10),
                               Row(children: <Widget>[
                                 const Icon(Icons.library_books_outlined),
                                 const SizedBox(width: 5),
-                                Text(plant["templateName"]),
+                                Text(plant["template"]["name"]),
                               ])
                             ]),
                           ),
@@ -234,48 +393,8 @@ class _PlantCard extends StatelessWidget {
                             ),
                           ),
                         ])),
-                    Expanded(
-                        child: Column(
-                      children: <Widget>[
-                        Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: <Widget>[
-                              Text(plant["battery"].toString() + "%"),
-                              const SizedBox(
-                                width: 5,
-                              ),
-                              SizedBox(
-                                  width: levelSymbolWidth,
-                                  height: levelSymbolWidth * 3,
-                                  child: ZoomableLevelBar(
-                                      title:
-                                          "Batteriestand: ${plant["battery"]}%",
-                                      level: plant["battery"],
-                                      onCreate: (level) =>
-                                          _BatteryLevel(level, Colors.black)))
-                            ]),
-                        Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: <Widget>[
-                              Text(plant["water"].toString() + "%"),
-                              const SizedBox(
-                                width: 5,
-                              ),
-                              SizedBox(
-                                  width: levelSymbolWidth,
-                                  height: levelSymbolWidth * 3,
-                                  child: ZoomableLevelBar(
-                                    title:
-                                        "Wasserfüllstand: ${plant["water"]}%",
-                                    level: plant["water"],
-                                    onCreate: (level) =>
-                                        _WaterLevel(level, Colors.black),
-                                  )),
-                            ]),
-                      ],
-                    )),
                     const SizedBox(
-                      width: 5,
+                      width: 50,
                     )
                   ]),
             ]),
@@ -400,7 +519,14 @@ class _LevelAnimation extends State<LevelAnimation>
   double level = 0.0;
 
   late Animation<double> _animation;
-  late AnimationController controller;
+  AnimationController? controller;
+
+  @override
+  void dispose() {
+    controller?.dispose();
+    controller = null;
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -413,20 +539,21 @@ class _LevelAnimation extends State<LevelAnimation>
         });
       });
 
-    controller.forward();
-    controller.addStatusListener((status) {
+    controller?.forward();
+    controller?.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
-        controller.dispose();
+        controller?.dispose();
+        controller = null;
       } else if (status == AnimationStatus.dismissed) {
-        controller.forward();
+        controller?.forward();
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    _animation = Tween<double>(begin: 0.0, end: widget.endLevel)
-        .animate(CurvedAnimation(parent: controller, curve: Curves.decelerate));
+    _animation = Tween<double>(begin: 0.0, end: widget.endLevel).animate(
+        CurvedAnimation(parent: controller!, curve: Curves.decelerate));
     return widget.onCreate(level.round());
   }
 }

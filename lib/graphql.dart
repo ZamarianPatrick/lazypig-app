@@ -37,3 +37,36 @@ String gqlUpdateTemplate() {
   }
   """;
 }
+
+String gqlGetStations() {
+  return """
+  query {
+    stations {
+      id
+      name
+      waterLevel
+      plants {
+        id
+        active
+        name
+        port
+        template {
+          id
+          name
+          waterThreshold
+        }
+      }
+    }
+  }
+  """;
+}
+
+String gqlUpdateStation() {
+  return """
+  mutation(\$id: ID!, \$input: StationInput!) {
+    updateStation(id: \$id, input: \$input) {
+      name
+    }
+  }
+  """;
+}
