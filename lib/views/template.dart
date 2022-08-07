@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:lazy_pig/globals.dart';
 import 'package:lazy_pig/graphql.dart';
@@ -62,6 +63,128 @@ class _TemplateView extends State<TemplateView> {
     });
   }
 
+  showTemplateDialog(GlobalKey<ScaffoldState> _scaffoldKey, title, template) {
+    // Create button
+
+    TextEditingController nameController = TextEditingController();
+    TextEditingController waterThresholdController = TextEditingController();
+
+    if (template['name'] != null) {
+      nameController.text = template['name']!;
+    }
+
+    if (template['waterThreshold'] != null) {
+      waterThresholdController.text = template['waterThreshold'].toString();
+    }
+
+    Widget abortButton = ElevatedButton(
+      child: const Text("Abbrechen"),
+      style: ElevatedButton.styleFrom(primary: MyColors.secondary),
+      onPressed: () {
+        Navigator.of(_scaffoldKey.currentContext!).pop();
+      },
+    );
+
+    Widget okButton = ElevatedButton(
+      child: const Text("Speichern"),
+      style: ElevatedButton.styleFrom(primary: MyColors.primary),
+      onPressed: () {
+        template['name'] = nameController.text;
+        template['waterThreshold'] =
+            double.parse(waterThresholdController.text);
+
+        if (template['id'] == null) {
+          gqlClient
+              .mutate(MutationOptions(
+                  document: gql(gqlCreateTemplate()),
+                  variables: {
+                'input': {
+                  'name': template['name'],
+                  'waterThreshold': template['waterThreshold']
+                }
+              }))
+              .catchError((error) {
+            log('failed to create template',
+                name: 'lazypig.templates', error: jsonEncode(error));
+          }).then((value) => fetchTemplates());
+        } else {
+          gqlClient
+              .mutate(MutationOptions(
+                  document: gql(gqlUpdateTemplate()),
+                  variables: {
+                'id': template['id'],
+                'input': {
+                  'name': template['name'],
+                  'waterThreshold': template['waterThreshold']
+                }
+              }))
+              .catchError((error) {
+            log('failed to update template',
+                name: 'lazypig.templates', error: jsonEncode(error));
+          }).then((value) => fetchTemplates());
+        }
+        Navigator.of(_scaffoldKey.currentContext!).pop();
+      },
+    );
+
+    // Create AlertDialog
+    AlertDialog alert = AlertDialog(
+      title: Text(title),
+      content: Wrap(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                  child: TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: "Name",
+                  labelStyle: TextStyle(color: Colors.black),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: MyColors.primary),
+                  ),
+                ),
+              ))
+            ],
+          ),
+          Row(
+            children: [
+              Expanded(
+                  child: TextField(
+                controller: waterThresholdController,
+                decoration: const InputDecoration(
+                  labelText: "Feuchtigkeitsschwelle",
+                  labelStyle: TextStyle(
+                    color: Colors.black,
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: MyColors.primary),
+                  ),
+                ),
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                ],
+              ))
+            ],
+          )
+        ],
+      ),
+      actions: [
+        abortButton,
+        okButton,
+      ],
+    );
+
+    // show the dialog
+    showDialog(
+      context: _scaffoldKey.currentContext!,
+      builder: (BuildContext context) {
+        return alert;
+      },
+    );
+  }
+
   @override
   void initState() {
     fetchTemplates();
@@ -81,7 +204,9 @@ class _TemplateView extends State<TemplateView> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      showTemplateDialog(_scaffoldKey, "Vorlage erstellen", {});
+                    },
                     child: const Icon(Icons.add, color: Colors.white),
                     style: ElevatedButton.styleFrom(
                       shape: const CircleBorder(),
@@ -145,7 +270,7 @@ class _TemplateView extends State<TemplateView> {
                                     deleteTemplates(ids);
                                   });
                                 },
-                                icon: const Icon(Icons.edit),
+                                icon: const Icon(Icons.delete_rounded),
                                 label: Text(_selectedCount.toString() +
                                     ' Ausgewählte löschen'),
                                 style: ElevatedButton.styleFrom(
@@ -207,7 +332,10 @@ class _TemplateView extends State<TemplateView> {
                                   size: 25,
                                 )),
                             IconButton(
-                                onPressed: () {},
+                                onPressed: () {
+                                  showTemplateDialog(_scaffoldKey,
+                                      "Vorlage bearbeiten", template);
+                                },
                                 icon: const Icon(
                                   Icons.edit,
                                   color: Colors.orangeAccent,

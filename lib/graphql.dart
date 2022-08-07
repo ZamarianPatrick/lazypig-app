@@ -17,3 +17,23 @@ String gqlDeleteTemplates() {
   }
   """;
 }
+
+String gqlCreateTemplate() {
+  return """
+  mutation(\$input: PlantTemplateInput!) {
+    createPlantTemplate(input: \$input) {
+      id
+    }
+  }
+  """;
+}
+
+String gqlUpdateTemplate() {
+  return """
+  mutation(\$id: ID!, \$input: PlantTemplateInput!) {
+    updatePlantTemplate(id: \$id, input: \$input) {
+      id
+    }
+  }
+  """;
+}
