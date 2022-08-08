@@ -452,41 +452,54 @@ class _PlantView extends State<PlantView> {
                           spacing: 20,
                           runSpacing: 20,
                           children: [
-                            ElevatedButton(
-                              onPressed: () {
-                                showPlantDialog(_scaffoldKey,
-                                    "Pflanze hinzufügen", {}, station['id']);
-                              },
-                              child: const Icon(Icons.add, color: Colors.white),
-                              style: ElevatedButton.styleFrom(
-                                shape: const CircleBorder(),
-                                padding: const EdgeInsets.all(5),
-                                primary: MyColors.primary, // <-- Button color
-                              ),
-                            ),
-                            for (var plant in station['plants'])
-                              _PlantCard(
-                                plant: plant,
-                                width: width,
-                                onPlantActiveUpdate: (plant) {
-                                  updatePlantsActiveState(plant, station['id']);
-                                },
-                                onPlantChange: (plant) {
-                                  if (plant['id'] == null) {
+                            Row(
+                              children: [
+                                ElevatedButton(
+                                  onPressed: () {
                                     showPlantDialog(
                                         _scaffoldKey,
                                         "Pflanze hinzufügen",
-                                        plant,
+                                        {},
                                         station['id']);
-                                  } else {
-                                    showPlantDialog(
-                                        _scaffoldKey,
-                                        "Pflanze bearbeiten",
-                                        plant,
-                                        station['id']);
-                                  }
-                                },
-                              )
+                                  },
+                                  child: const Icon(Icons.add,
+                                      color: Colors.white),
+                                  style: ElevatedButton.styleFrom(
+                                    shape: const CircleBorder(),
+                                    padding: const EdgeInsets.all(5),
+                                    primary:
+                                        MyColors.primary, // <-- Button color
+                                  ),
+                                ),
+                              ],
+                            ),
+                            for (var plant in station['plants'])
+                              if (_selectedIndex == 0 ||
+                                  (_selectedIndex == 1 && plant['active']) ||
+                                  (_selectedIndex == 2 && !plant['active']))
+                                _PlantCard(
+                                  plant: plant,
+                                  width: width,
+                                  onPlantActiveUpdate: (plant) {
+                                    updatePlantsActiveState(
+                                        plant, station['id']);
+                                  },
+                                  onPlantChange: (plant) {
+                                    if (plant['id'] == null) {
+                                      showPlantDialog(
+                                          _scaffoldKey,
+                                          "Pflanze hinzufügen",
+                                          plant,
+                                          station['id']);
+                                    } else {
+                                      showPlantDialog(
+                                          _scaffoldKey,
+                                          "Pflanze bearbeiten",
+                                          plant,
+                                          station['id']);
+                                    }
+                                  },
+                                )
                           ],
                         )),
                 ],
