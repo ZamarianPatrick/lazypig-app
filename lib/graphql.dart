@@ -10,6 +10,17 @@ String gqlGetTemplates() {
   """;
 }
 
+String gqlGetTemplateNames() {
+  return """
+  query {
+    templates {
+      id
+      name
+    }
+  } 
+  """;
+}
+
 String gqlDeleteTemplates() {
   return """
   mutation(\$ids: [ID]!) {
@@ -67,6 +78,42 @@ String gqlUpdateStation() {
     updateStation(id: \$id, input: \$input) {
       name
     }
+  }
+  """;
+}
+
+String gqlPossibleStationPorts() {
+  return """
+  query {
+    stationPorts
+  }
+  """;
+}
+
+String gqlUpdatePlant() {
+  return """
+  mutation(\$id: ID!, \$stationID: ID!, \$input: PlantInput!) {
+    updatePlant(id: \$id, stationID: \$stationID, input: \$input) {
+      id
+    }
+  }
+  """;
+}
+
+String gqlCreatePlant() {
+  return """
+  mutation(\$stationID: ID!, \$input: PlantInput!) {
+    createPlant(stationID: \$stationID, input: \$input) {
+      id
+    }
+  }
+  """;
+}
+
+String gqlDeletePlant() {
+  return """
+  mutation(\$id: ID!) {
+    deletePlant(id: \$id)
   }
   """;
 }

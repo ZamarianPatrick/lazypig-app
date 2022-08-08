@@ -22,48 +22,9 @@ class _PlantView extends State<PlantView> {
   int _selectedIndex = 0;
 
   List<dynamic> _stations = [];
+  List<dynamic> _stationPorts = [];
+  List<dynamic> _templates = [];
   Map<int, bool> _expanded = {};
-
-  final List<Map<String, dynamic>> _allPlants = [
-    {
-      "id": 1,
-      "name": "Bonsai Fenster",
-      "active": true,
-      "room": "Zimmer 108",
-      "templateName": "Bonsai",
-      "battery": 60,
-      "water": 9,
-    },
-    {
-      "id": 2,
-      "name": "Kaktus Tisch",
-      "active": true,
-      "room": "Zimmer 204",
-      "templateName": "Kaktus",
-      "battery": 30,
-      "water": 74,
-    },
-    {
-      "id": 3,
-      "name": "Calluna",
-      "active": false,
-      "room": "Zimmer 212",
-      "templateName": "Calluna",
-      "battery": 10,
-      "water": 94,
-    },
-    {
-      "id": 4,
-      "name": "Calluna",
-      "active": false,
-      "room": "Zimmer 212",
-      "templateName": "Calluna",
-      "battery": 95,
-      "water": 32,
-    },
-  ];
-
-  List<Map<String, dynamic>> _foundPlants = [];
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -88,17 +49,38 @@ class _PlantView extends State<PlantView> {
     });
   }
 
+  fetchPossibleStationPorts() {
+    gqlClient
+        .query(QueryOptions(document: gql(gqlPossibleStationPorts())))
+        .catchError((error) {
+      log('failed to fetch possible station ports',
+          name: 'lazypig.plants', error: jsonEncode(error));
+    }).then((result) {
+      setState(() {
+        _stationPorts = result.data!['stationPorts'];
+      });
+    });
+  }
+
+  fetchTemplateNames() {
+    gqlClient
+        .query(QueryOptions(
+      document: gql(gqlGetTemplateNames()),
+      fetchPolicy: FetchPolicy.networkOnly,
+    ))
+        .catchError((error) {
+      log('failed to fetch templates',
+          name: 'lazypig.templates', error: jsonEncode(error));
+    }).then((result) {
+      setState(() {
+        _templates = result.data!['templates'];
+      });
+    });
+  }
+
   void _onItemTapped(int index) {
-    List<Map<String, dynamic>> results = [];
-    if (index == 0) {
-      results = _allPlants;
-    } else {
-      var active = index == 1;
-      results = _allPlants.where((plant) => plant["active"] == active).toList();
-    }
     setState(() {
       _selectedIndex = index;
-      _foundPlants = results;
     });
   }
 
@@ -179,10 +161,225 @@ class _PlantView extends State<PlantView> {
     );
   }
 
+  updatePlantsActiveState(plant, stationID) {
+    dynamic variables = {
+      'id': plant['id'],
+      'stationID': stationID,
+      'input': {
+        'name': plant['name'],
+        'templateID': plant['template']['id'],
+        'active': plant['active'],
+        'port': plant['port']
+      }
+    };
+    gqlClient
+        .mutate(MutationOptions(
+            document: gql(gqlUpdatePlant()), variables: variables))
+        .catchError((error) {
+      log('failed to update plant',
+          name: 'lazypig.plants', error: jsonEncode(error));
+    }).then((result) {
+      fetchStations();
+    });
+  }
+
+  showPlantDialog(
+      GlobalKey<ScaffoldState> _scaffoldKey, title, plant, stationID) {
+    // Create button
+
+    TextEditingController nameController = TextEditingController();
+    String? port;
+    int? templateId;
+
+    if (plant['name'] != null) {
+      nameController.text = plant['name']!;
+    }
+
+    if (plant['port'] != null) {
+      port = plant['port'];
+    }
+
+    if (plant['template'] != null && plant['template']['id'] != null) {
+      templateId = plant['template']['id'];
+    }
+
+    Widget abortButton = ElevatedButton(
+      child: const Text("Abbrechen"),
+      style: ElevatedButton.styleFrom(primary: MyColors.secondary),
+      onPressed: () {
+        Navigator.of(_scaffoldKey.currentContext!).pop();
+      },
+    );
+
+    Widget deleteButton = ElevatedButton.icon(
+      icon: const Icon(Icons.delete_rounded),
+      style: ElevatedButton.styleFrom(primary: MyColors.danger),
+      onPressed: () {
+        showConfirmDialog(_scaffoldKey, "Bestätigung",
+            "Möchtest du die Pflanze wirklich löschen", () {
+          gqlClient
+              .mutate(MutationOptions(
+                  document: gql(gqlDeletePlant()),
+                  variables: {'id': plant['id']}))
+              .catchError((error) {
+            log('failed to delete plant',
+                name: 'lazypig.plants', error: jsonEncode(error));
+          }).then((result) {
+            fetchStations();
+          });
+          Navigator.of(_scaffoldKey.currentContext!).pop();
+        });
+      },
+      label: Text('Löschen'),
+    );
+
+    Widget okButton = ElevatedButton(
+      child: const Text("Speichern"),
+      style: ElevatedButton.styleFrom(primary: MyColors.primary),
+      onPressed: () {
+        if (nameController.text == "") {
+          showMessageDialog(
+              _scaffoldKey, "Fehler", "Es wird ein Name benötigt");
+          return;
+        }
+
+        if (port == null) {
+          showMessageDialog(
+              _scaffoldKey, "Fehler", "Es wird ein Anschluss benötigt");
+          return;
+        }
+
+        if (templateId == null) {
+          showMessageDialog(
+              _scaffoldKey, "Fehler", "Es wird eine Vorlage benötigt");
+          return;
+        }
+
+        dynamic variables = {
+          'stationID': stationID,
+          'input': {
+            'name': nameController.text,
+            'templateID': templateId,
+            'port': port
+          }
+        };
+
+        if (plant['id'] == null) {
+          variables['input']['active'] = false;
+
+          gqlClient
+              .mutate(MutationOptions(
+                  document: gql(gqlCreatePlant()), variables: variables))
+              .catchError((error) {
+            log('failed to create plant',
+                name: 'lazypig.plants', error: jsonEncode(error));
+          }).then((result) {
+            fetchStations();
+          });
+        } else {
+          variables['id'] = plant['id'];
+          variables['input']['active'] = plant['active'];
+
+          gqlClient
+              .mutate(MutationOptions(
+                  document: gql(gqlUpdatePlant()), variables: variables))
+              .catchError((error) {
+            log('failed to update plant',
+                name: 'lazypig.plants', error: jsonEncode(error));
+          }).then((result) {
+            fetchStations();
+          });
+        }
+
+        Navigator.of(_scaffoldKey.currentContext!).pop();
+      },
+    );
+
+    // Create AlertDialog
+    AlertDialog alert = AlertDialog(
+      title: Text(title),
+      content: Wrap(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                  child: TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: "Name",
+                  labelStyle: TextStyle(color: Colors.black),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: MyColors.primary),
+                  ),
+                ),
+              )),
+            ],
+          ),
+          Row(
+            children: [
+              Expanded(
+                  child: DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: "Anschluss",
+                        labelStyle: TextStyle(color: Colors.black),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: MyColors.primary),
+                        ),
+                      ),
+                      value: port,
+                      items: _stationPorts.map((e) {
+                        return DropdownMenuItem<String>(
+                            value: e.toString(), child: Text(e));
+                      }).toList(),
+                      onChanged: (newValue) {
+                        port = newValue!;
+                      }))
+            ],
+          ),
+          Row(
+            children: [
+              Expanded(
+                  child: DropdownButtonFormField<int>(
+                      decoration: const InputDecoration(
+                        labelText: "Vorlage",
+                        labelStyle: TextStyle(color: Colors.black),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: MyColors.primary),
+                        ),
+                      ),
+                      value: templateId,
+                      items: _templates.map((e) {
+                        return DropdownMenuItem<int>(
+                            value: e['id'], child: Text(e['name']));
+                      }).toList(),
+                      onChanged: (newValue) {
+                        templateId = newValue!;
+                      }))
+            ],
+          )
+        ],
+      ),
+      actions: [
+        abortButton,
+        if (plant['id'] != null) deleteButton,
+        okButton,
+      ],
+    );
+
+    // show the dialog
+    showDialog(
+      context: _scaffoldKey.currentContext!,
+      builder: (BuildContext context) {
+        return alert;
+      },
+    );
+  }
+
   @override
   void initState() {
     fetchStations();
-    _foundPlants = _allPlants;
+    fetchPossibleStationPorts();
+    fetchTemplateNames();
     super.initState();
   }
 
@@ -207,71 +404,93 @@ class _PlantView extends State<PlantView> {
             children: [
               Expanded(
                   child: SingleChildScrollView(
-                child: _foundPlants.isNotEmpty
-                    ? ExpansionPanelList(
-                        expansionCallback: (int index, bool isExpanded) {
-                          setState(() {
-                            _expanded[_stations[index]['id']] = !isExpanded;
-                          });
-                        },
-                        children: [
-                          for (var station in _stations)
-                            ExpansionPanel(
-                                isExpanded: _expanded[station['id']]!,
-                                headerBuilder:
-                                    (BuildContext context, bool isExpanded) {
-                                  return Row(children: <Widget>[
-                                    const SizedBox(
-                                      width: 15,
-                                    ),
-                                    Text(station['name'],
-                                        style: const TextStyle(fontSize: 16)),
-                                    const Spacer(),
-                                    IconButton(
-                                        onPressed: () {
-                                          showStationDialog(_scaffoldKey,
-                                              "Station bearbeiten", station);
-                                        },
-                                        icon: const Icon(
-                                          Icons.edit,
-                                          color: Colors.orangeAccent,
-                                          size: 25,
-                                        )),
-                                    Text(
-                                        station["waterLevel"].toString() + "%"),
-                                    const SizedBox(
-                                      width: 5,
-                                    ),
-                                    SizedBox(
-                                        width: levelSymbolWidth,
-                                        height: levelSymbolWidth * 3,
-                                        child: ZoomableLevelBar(
-                                          title:
-                                              "Wasserfüllstand: ${station["waterLevel"]}%",
-                                          level: station["waterLevel"],
-                                          onCreate: (level) =>
-                                              _WaterLevel(level, Colors.black),
-                                        )),
-                                  ]);
+                      child: ExpansionPanelList(
+                expansionCallback: (int index, bool isExpanded) {
+                  setState(() {
+                    _expanded[_stations[index]['id']] = !isExpanded;
+                  });
+                },
+                children: [
+                  for (var station in _stations)
+                    ExpansionPanel(
+                        isExpanded: _expanded[station['id']]!,
+                        headerBuilder: (BuildContext context, bool isExpanded) {
+                          return Row(children: <Widget>[
+                            const SizedBox(
+                              width: 15,
+                            ),
+                            Text(station['name'],
+                                style: const TextStyle(fontSize: 16)),
+                            const Spacer(),
+                            IconButton(
+                                onPressed: () {
+                                  showStationDialog(_scaffoldKey,
+                                      "Station bearbeiten", station);
                                 },
-                                body: Wrap(
-                                  spacing: 20,
-                                  runSpacing: 20,
-                                  children: [
-                                    for (var plant in station['plants'])
-                                      _PlantCard(
-                                        plant: plant,
-                                        width: width,
-                                      )
-                                  ],
+                                icon: const Icon(
+                                  Icons.edit,
+                                  color: Colors.orangeAccent,
+                                  size: 25,
                                 )),
-                        ],
-                      )
-                    : const Text(
-                        'Noch keine Pflanzen vorhanden',
-                        style: TextStyle(fontSize: 18),
-                      ),
-              ))
+                            Text(station["waterLevel"].toString() + "%"),
+                            const SizedBox(
+                              width: 5,
+                            ),
+                            SizedBox(
+                                width: levelSymbolWidth,
+                                height: levelSymbolWidth * 3,
+                                child: ZoomableLevelBar(
+                                  title:
+                                      "Wasserfüllstand: ${station["waterLevel"]}%",
+                                  level: station["waterLevel"],
+                                  onCreate: (level) =>
+                                      _WaterLevel(level, Colors.black),
+                                )),
+                          ]);
+                        },
+                        body: Wrap(
+                          spacing: 20,
+                          runSpacing: 20,
+                          children: [
+                            ElevatedButton(
+                              onPressed: () {
+                                showPlantDialog(_scaffoldKey,
+                                    "Pflanze hinzufügen", {}, station['id']);
+                              },
+                              child: const Icon(Icons.add, color: Colors.white),
+                              style: ElevatedButton.styleFrom(
+                                shape: const CircleBorder(),
+                                padding: const EdgeInsets.all(5),
+                                primary: MyColors.primary, // <-- Button color
+                              ),
+                            ),
+                            for (var plant in station['plants'])
+                              _PlantCard(
+                                plant: plant,
+                                width: width,
+                                onPlantActiveUpdate: (plant) {
+                                  updatePlantsActiveState(plant, station['id']);
+                                },
+                                onPlantChange: (plant) {
+                                  if (plant['id'] == null) {
+                                    showPlantDialog(
+                                        _scaffoldKey,
+                                        "Pflanze hinzufügen",
+                                        plant,
+                                        station['id']);
+                                  } else {
+                                    showPlantDialog(
+                                        _scaffoldKey,
+                                        "Pflanze bearbeiten",
+                                        plant,
+                                        station['id']);
+                                  }
+                                },
+                              )
+                          ],
+                        )),
+                ],
+              )))
             ],
           ),
         ),
@@ -310,11 +529,15 @@ class _PlantView extends State<PlantView> {
 class _PlantCard extends StatelessWidget {
   final Map<String, dynamic> plant;
   final double width;
+  final void Function(dynamic) onPlantChange;
+  final void Function(dynamic) onPlantActiveUpdate;
 
   const _PlantCard({
     Key? key,
     required this.plant,
     required this.width,
+    required this.onPlantChange,
+    required this.onPlantActiveUpdate,
   }) : super(key: key);
 
   @override
@@ -338,11 +561,17 @@ class _PlantCard extends StatelessWidget {
                         flex: 1,
                         child: Padding(
                           padding: EdgeInsets.all(inset),
-                          child: IconTheme(
-                            data: plant["active"]
-                                ? const IconThemeData(color: Colors.green)
-                                : const IconThemeData(color: Colors.red),
-                            child: const Icon(Icons.power_settings_new),
+                          child: IconButton(
+                            icon: IconTheme(
+                              data: plant["active"]
+                                  ? const IconThemeData(color: Colors.green)
+                                  : const IconThemeData(color: Colors.red),
+                              child: const Icon(Icons.power_settings_new),
+                            ),
+                            onPressed: () {
+                              plant['active'] = !plant['active'];
+                              onPlantActiveUpdate(plant);
+                            },
                           ),
                         )),
                     Expanded(
@@ -385,7 +614,9 @@ class _PlantCard extends StatelessWidget {
                             ]),
                           ),
                           ElevatedButton.icon(
-                            onPressed: () {},
+                            onPressed: () {
+                              onPlantChange(plant);
+                            },
                             icon: const Icon(Icons.edit),
                             label: const Text('Verwalten'),
                             style: ElevatedButton.styleFrom(
