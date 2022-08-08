@@ -6,7 +6,10 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:lazy_pig/colors.dart';
 
 GraphQLClient gqlClient = GraphQLClient(
-  link: HttpLink('http://lazypig.local:8080/graphql'),
+  link: Link.split(
+      (request) => request.isSubscription,
+      WebSocketLink('ws://lazypig.local:8080/graphql'),
+      HttpLink('http://lazypig.local:8080/graphql')),
   cache: GraphQLCache(),
 );
 

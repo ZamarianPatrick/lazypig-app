@@ -117,3 +117,14 @@ String gqlDeletePlant() {
   }
   """;
 }
+
+String gqlSubscribeStations() {
+  return """
+  subscription {
+    stations {
+      id
+      waterLevel
+    }
+  }
+  """;
+}

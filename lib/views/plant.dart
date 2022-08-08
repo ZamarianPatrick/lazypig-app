@@ -49,6 +49,34 @@ class _PlantView extends State<PlantView> {
     });
   }
 
+  subscribeStations() {
+    var subscription = gqlClient.subscribe(SubscriptionOptions(
+      document: gql(gqlSubscribeStations()),
+    ));
+
+    subscription.listen((result) {
+      if (result.hasException) {
+        log('failed to fetch possible station ports',
+            name: 'lazypig.plants', error: result.exception.toString());
+        return;
+      }
+
+      if (result.isLoading) {
+        return;
+      }
+
+      var stationData = result.data!['stations'];
+
+      for (var station in _stations) {
+        if (station['id'] == stationData['id']) {
+          setState(() {
+            station['waterLevel'] = stationData['waterLevel'];
+          });
+        }
+      }
+    });
+  }
+
   fetchPossibleStationPorts() {
     gqlClient
         .query(QueryOptions(document: gql(gqlPossibleStationPorts())))
@@ -380,6 +408,7 @@ class _PlantView extends State<PlantView> {
     fetchStations();
     fetchPossibleStationPorts();
     fetchTemplateNames();
+    subscribeStations();
     super.initState();
   }
 
@@ -680,8 +709,8 @@ class _PlantTitle extends StatelessWidget {
 
 class ZoomableLevelBar extends StatelessWidget {
   final String title;
-  final int level;
-  final LevelBar Function(int level) onCreate;
+  final double level;
+  final LevelBar Function(double level) onCreate;
 
   const ZoomableLevelBar(
       {Key? key,
@@ -716,8 +745,8 @@ class ZoomableLevelBar extends StatelessWidget {
                             width: 50,
                             height: 150,
                             child: LevelAnimation(
-                              endLevel: level + 0.0,
-                              onCreate: (int level) {
+                              endLevel: level,
+                              onCreate: (double level) {
                                 return CustomPaint(painter: onCreate(level));
                               },
                             ))
@@ -735,7 +764,7 @@ class ZoomableLevelBar extends StatelessWidget {
 }
 
 abstract class LevelBar extends CustomPainter {
-  final int level;
+  final double level;
   final Color mainColor;
   LevelBar(this.level, this.mainColor);
 
@@ -748,7 +777,7 @@ abstract class LevelBar extends CustomPainter {
 
 class LevelAnimation extends StatefulWidget {
   final double endLevel;
-  final Widget Function(int level) onCreate;
+  final Widget Function(double level) onCreate;
 
   const LevelAnimation(
       {Key? key, required this.endLevel, required this.onCreate})
@@ -786,8 +815,6 @@ class _LevelAnimation extends State<LevelAnimation>
     controller?.forward();
     controller?.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
-        controller?.dispose();
-        controller = null;
       } else if (status == AnimationStatus.dismissed) {
         controller?.forward();
       }
@@ -798,12 +825,12 @@ class _LevelAnimation extends State<LevelAnimation>
   Widget build(BuildContext context) {
     _animation = Tween<double>(begin: 0.0, end: widget.endLevel).animate(
         CurvedAnimation(parent: controller!, curve: Curves.decelerate));
-    return widget.onCreate(level.round());
+    return widget.onCreate(level);
   }
 }
 
 class _WaterLevel extends LevelBar {
-  _WaterLevel(int level, Color mainColor) : super(level, mainColor);
+  _WaterLevel(double level, Color mainColor) : super(level, mainColor);
 
   @override
   void paint(Canvas canvas, Size size) {
