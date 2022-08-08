@@ -24,7 +24,7 @@ class _PlantView extends State<PlantView> {
   List<dynamic> _stations = [];
   List<dynamic> _stationPorts = [];
   List<dynamic> _templates = [];
-  Map<int, bool> _expanded = {};
+  final Map<int, bool> _expanded = {};
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -230,7 +230,7 @@ class _PlantView extends State<PlantView> {
           Navigator.of(_scaffoldKey.currentContext!).pop();
         });
       },
-      label: Text('Löschen'),
+      label: const Text('Löschen'),
     );
 
     Widget okButton = ElevatedButton(
@@ -786,48 +786,6 @@ class _LevelAnimation extends State<LevelAnimation>
     _animation = Tween<double>(begin: 0.0, end: widget.endLevel).animate(
         CurvedAnimation(parent: controller!, curve: Curves.decelerate));
     return widget.onCreate(level.round());
-  }
-}
-
-class _BatteryLevel extends LevelBar {
-  _BatteryLevel(int level, Color mainColor) : super(level, mainColor);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawRRect(
-        RRect.fromLTRBR(
-            0, size.height * 0.2, size.width, size.height * 0.8, Radius.zero),
-        Paint()
-          ..color = mainColor
-          ..strokeWidth = 1.5
-          ..style = PaintingStyle.stroke);
-
-    canvas.drawArc(
-      Rect.fromCenter(
-        center: Offset(size.width / 2, size.height * 0.2),
-        height: size.height * 0.2,
-        width: size.width * 0.5,
-      ),
-      math.pi,
-      math.pi,
-      false,
-      Paint()
-        ..color = mainColor
-        ..style = PaintingStyle.fill,
-    );
-
-    var bottom = (size.height * 0.8 - 1.0);
-    var fullLength = (size.height * 0.8 - 1.0) - (size.height * 0.2 + 1.2);
-    var batteryLength = fullLength * (level / 100);
-
-    var batteryColor = (level <= 20) ? Colors.red : Colors.green;
-
-    canvas.drawRRect(
-        RRect.fromLTRBR(
-            1.2, bottom - batteryLength, size.width - 1.5, bottom, Radius.zero),
-        Paint()
-          ..color = batteryColor
-          ..style = PaintingStyle.fill);
   }
 }
 
