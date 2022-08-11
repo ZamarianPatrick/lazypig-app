@@ -1,12 +1,9 @@
-import 'dart:convert';
-import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:lazy_pig/globals.dart';
-import 'package:lazy_pig/graphql.dart';
 
+import '../backend.dart';
 import '../colors.dart';
 import '../components/drawer.dart';
 import '../components/topbar.dart';
@@ -27,15 +24,7 @@ class _TemplateView extends State<TemplateView> {
   Map<int, bool> _selected = {};
 
   fetchTemplates() {
-    gqlClient
-        .query(QueryOptions(
-      document: gql(gqlGetTemplates()),
-      fetchPolicy: FetchPolicy.networkOnly,
-    ))
-        .catchError((error) {
-      log('failed to fetch templates',
-          name: 'lazypig.templates', error: jsonEncode(error));
-    }).then((result) {
+    backend.getTemplates((result) {
       setState(() {
         _templates = result.data!['templates'];
       });
@@ -43,13 +32,7 @@ class _TemplateView extends State<TemplateView> {
   }
 
   deleteTemplates(List<int> ids) {
-    gqlClient
-        .mutate(MutationOptions(
-            document: gql(gqlDeleteTemplates()), variables: {'ids': ids}))
-        .catchError((error) {
-      log('failed to delete templates',
-          name: 'lazypig.templates', error: jsonEncode(error));
-    }).then((result) {
+    backend.deleteTemplates(ids, (result) {
       if (result.hasException) {
         GraphQLError? err = result.exception?.graphqlErrors.first;
         if (err?.message == "FOREIGN KEY constraint failed") {
@@ -93,35 +76,18 @@ class _TemplateView extends State<TemplateView> {
         template['waterThreshold'] =
             double.parse(waterThresholdController.text);
 
+        dynamic variables = {
+          'input': {
+            'name': template['name'],
+            'waterThreshold': template['waterThreshold']
+          }
+        };
+
         if (template['id'] == null) {
-          gqlClient
-              .mutate(MutationOptions(
-                  document: gql(gqlCreateTemplate()),
-                  variables: {
-                'input': {
-                  'name': template['name'],
-                  'waterThreshold': template['waterThreshold']
-                }
-              }))
-              .catchError((error) {
-            log('failed to create template',
-                name: 'lazypig.templates', error: jsonEncode(error));
-          }).then((value) => fetchTemplates());
+          backend.createTemplate(variables, (result) => fetchTemplates());
         } else {
-          gqlClient
-              .mutate(MutationOptions(
-                  document: gql(gqlUpdateTemplate()),
-                  variables: {
-                'id': template['id'],
-                'input': {
-                  'name': template['name'],
-                  'waterThreshold': template['waterThreshold']
-                }
-              }))
-              .catchError((error) {
-            log('failed to update template',
-                name: 'lazypig.templates', error: jsonEncode(error));
-          }).then((value) => fetchTemplates());
+          variables['id'] = template['id'];
+          backend.updateTemplate(variables, (result) => fetchTemplates());
         }
         Navigator.of(_scaffoldKey.currentContext!).pop();
       },

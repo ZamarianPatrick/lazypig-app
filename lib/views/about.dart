@@ -10,7 +10,7 @@ class AboutView extends StatelessWidget {
 
   final List<String> names = [
     "Erika Brönimann",
-    "Andresas Bührer",
+    "Andreas Bührer",
     "Andreas Gasser",
     "Joel Meier",
     "Patrick Zamarian",

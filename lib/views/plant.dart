@@ -1,15 +1,12 @@
-import 'dart:convert';
-import 'dart:developer';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:lazy_pig/colors.dart';
 import 'package:lazy_pig/components/drawer.dart';
 import 'package:lazy_pig/components/topbar.dart';
 
+import '../backend.dart';
 import '../globals.dart';
-import '../graphql.dart';
 
 class PlantView extends StatefulWidget {
   const PlantView({Key? key}) : super(key: key);
@@ -29,15 +26,7 @@ class _PlantView extends State<PlantView> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   fetchStations() {
-    gqlClient
-        .query(QueryOptions(
-      document: gql(gqlGetStations()),
-      fetchPolicy: FetchPolicy.networkOnly,
-    ))
-        .catchError((error) {
-      log('failed to fetch stations',
-          name: 'lazypig.plants', error: jsonEncode(error));
-    }).then((result) {
+    backend.getStations((result) {
       setState(() {
         _stations = result.data!['stations'];
         for (var station in _stations) {
@@ -50,21 +39,7 @@ class _PlantView extends State<PlantView> {
   }
 
   subscribeStations() {
-    var subscription = gqlClient.subscribe(SubscriptionOptions(
-      document: gql(gqlSubscribeStations()),
-    ));
-
-    subscription.listen((result) {
-      if (result.hasException) {
-        log('failed to fetch possible station ports',
-            name: 'lazypig.plants', error: result.exception.toString());
-        return;
-      }
-
-      if (result.isLoading) {
-        return;
-      }
-
+    backend.subscribeStations((result) {
       var stationData = result.data!['stations'];
 
       for (var station in _stations) {
@@ -78,12 +53,7 @@ class _PlantView extends State<PlantView> {
   }
 
   fetchPossibleStationPorts() {
-    gqlClient
-        .query(QueryOptions(document: gql(gqlPossibleStationPorts())))
-        .catchError((error) {
-      log('failed to fetch possible station ports',
-          name: 'lazypig.plants', error: jsonEncode(error));
-    }).then((result) {
+    backend.getPossiblePorts((result) {
       setState(() {
         _stationPorts = result.data!['stationPorts'];
       });
@@ -91,15 +61,7 @@ class _PlantView extends State<PlantView> {
   }
 
   fetchTemplateNames() {
-    gqlClient
-        .query(QueryOptions(
-      document: gql(gqlGetTemplateNames()),
-      fetchPolicy: FetchPolicy.networkOnly,
-    ))
-        .catchError((error) {
-      log('failed to fetch templates',
-          name: 'lazypig.templates', error: jsonEncode(error));
-    }).then((result) {
+    backend.getTemplateNames((result) {
       setState(() {
         _templates = result.data!['templates'];
       });
@@ -134,16 +96,7 @@ class _PlantView extends State<PlantView> {
       style: ElevatedButton.styleFrom(primary: MyColors.primary),
       onPressed: () {
         station['name'] = nameController.text;
-        gqlClient
-            .mutate(
-                MutationOptions(document: gql(gqlUpdateStation()), variables: {
-          'id': station['id'],
-          'input': {'name': station['name']}
-        }))
-            .catchError((error) {
-          log('failed to update station',
-              name: 'lazypig.plants', error: jsonEncode(error));
-        }).then((result) {
+        backend.updateStation(station['id'], station['name'], (result) {
           setState(() {
             station['name'] = result.data!['updateStation']['name'];
           });
@@ -200,13 +153,8 @@ class _PlantView extends State<PlantView> {
         'port': plant['port']
       }
     };
-    gqlClient
-        .mutate(MutationOptions(
-            document: gql(gqlUpdatePlant()), variables: variables))
-        .catchError((error) {
-      log('failed to update plant',
-          name: 'lazypig.plants', error: jsonEncode(error));
-    }).then((result) {
+
+    backend.updatePlant(variables, (result) {
       fetchStations();
     });
   }
@@ -245,16 +193,7 @@ class _PlantView extends State<PlantView> {
       onPressed: () {
         showConfirmDialog(_scaffoldKey, "Bestätigung",
             "Möchtest du die Pflanze wirklich löschen", () {
-          gqlClient
-              .mutate(MutationOptions(
-                  document: gql(gqlDeletePlant()),
-                  variables: {'id': plant['id']}))
-              .catchError((error) {
-            log('failed to delete plant',
-                name: 'lazypig.plants', error: jsonEncode(error));
-          }).then((result) {
-            fetchStations();
-          });
+          backend.deletePlant(plant['id'], (result) => fetchStations());
           Navigator.of(_scaffoldKey.currentContext!).pop();
         });
       },
@@ -295,28 +234,12 @@ class _PlantView extends State<PlantView> {
         if (plant['id'] == null) {
           variables['input']['active'] = false;
 
-          gqlClient
-              .mutate(MutationOptions(
-                  document: gql(gqlCreatePlant()), variables: variables))
-              .catchError((error) {
-            log('failed to create plant',
-                name: 'lazypig.plants', error: jsonEncode(error));
-          }).then((result) {
-            fetchStations();
-          });
+          backend.createPlant(variables, (result) => fetchStations());
         } else {
           variables['id'] = plant['id'];
           variables['input']['active'] = plant['active'];
 
-          gqlClient
-              .mutate(MutationOptions(
-                  document: gql(gqlUpdatePlant()), variables: variables))
-              .catchError((error) {
-            log('failed to update plant',
-                name: 'lazypig.plants', error: jsonEncode(error));
-          }).then((result) {
-            fetchStations();
-          });
+          backend.updatePlant(variables, (result) => fetchStations());
         }
 
         Navigator.of(_scaffoldKey.currentContext!).pop();
@@ -709,8 +632,8 @@ class _PlantTitle extends StatelessWidget {
 
 class ZoomableLevelBar extends StatelessWidget {
   final String title;
-  final double level;
-  final LevelBar Function(double level) onCreate;
+  final num level;
+  final LevelBar Function(num level) onCreate;
 
   const ZoomableLevelBar(
       {Key? key,
@@ -746,7 +669,7 @@ class ZoomableLevelBar extends StatelessWidget {
                             height: 150,
                             child: LevelAnimation(
                               endLevel: level,
-                              onCreate: (double level) {
+                              onCreate: (num level) {
                                 return CustomPaint(painter: onCreate(level));
                               },
                             ))
@@ -764,7 +687,7 @@ class ZoomableLevelBar extends StatelessWidget {
 }
 
 abstract class LevelBar extends CustomPainter {
-  final double level;
+  final num level;
   final Color mainColor;
   LevelBar(this.level, this.mainColor);
 
@@ -776,8 +699,8 @@ abstract class LevelBar extends CustomPainter {
 }
 
 class LevelAnimation extends StatefulWidget {
-  final double endLevel;
-  final Widget Function(double level) onCreate;
+  final num endLevel;
+  final Widget Function(num level) onCreate;
 
   const LevelAnimation(
       {Key? key, required this.endLevel, required this.onCreate})
@@ -789,9 +712,9 @@ class LevelAnimation extends StatefulWidget {
 
 class _LevelAnimation extends State<LevelAnimation>
     with SingleTickerProviderStateMixin {
-  double level = 0.0;
+  num level = 0.0;
 
-  late Animation<double> _animation;
+  late Animation<num> _animation;
   AnimationController? controller;
 
   @override
@@ -823,14 +746,14 @@ class _LevelAnimation extends State<LevelAnimation>
 
   @override
   Widget build(BuildContext context) {
-    _animation = Tween<double>(begin: 0.0, end: widget.endLevel).animate(
+    _animation = Tween<num>(begin: 0.0, end: widget.endLevel).animate(
         CurvedAnimation(parent: controller!, curve: Curves.decelerate));
     return widget.onCreate(level);
   }
 }
 
 class _WaterLevel extends LevelBar {
-  _WaterLevel(double level, Color mainColor) : super(level, mainColor);
+  _WaterLevel(num level, Color mainColor) : super(level, mainColor);
 
   @override
   void paint(Canvas canvas, Size size) {
