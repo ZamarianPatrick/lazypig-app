@@ -17,10 +17,14 @@ class Backend {
 
   Backend() {
     if (kIsWeb) {
-      wsLink = WebSocketLink('ws://lazypig.local:8080/graphql');
+      String host = Uri.base.host;
+      if (Uri.base.port != 80) {
+        host += ":" + Uri.base.port.toString();
+      }
+      wsLink = WebSocketLink('ws://' + host + '/graphql');
       gqlClient = GraphQLClient(
         link: Link.split((request) => request.isSubscription, wsLink!,
-            HttpLink('http://lazypig.local:8080/graphql')),
+            HttpLink('http://' + host + '/graphql')),
         cache: GraphQLCache(),
       );
     }
