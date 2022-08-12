@@ -13,10 +13,6 @@ jobs:
       -
         name: Checkout
         uses: actions/checkout@v3
-      - name: Prepare
-        id: prep
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
       - uses: actions/setup-java@v2
         with:
           distribution: 'zulu'
@@ -25,4 +21,11 @@ jobs:
         with:
           flutter-version: '3.0.5'
       - run: flutter pub get
-      - run: flutter build apk --dart-define=VERSION=${{ steps.prep.outputs.version }}
+      - run: flutter build apk --dart-define=VERSION=${GITHUB_REF#refs/tags/v}
+
+      -
+        name: Step 3 - Use the Upload Artifact GitHub Action
+        uses: actions/upload-artifact@v2
+        with:
+          name: lazypig-android.apk
+          path: build/app/outputs/flutter-apk/app-release.apk
