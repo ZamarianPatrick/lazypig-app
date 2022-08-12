@@ -18,12 +18,12 @@ jobs:
           flutter-version: '3.0.5'
           architecture: x64
       - run: flutter pub get
-      - run: flutter build ipa --release --dart-define=VERSION=${GITHUB_REF#refs/tags/v}
-      - run: mv build/ios/ipa lazypig-ios
-      - run: tar cfv lazypig-ios.tar lazypig-ios
+      - run: flutter build ios --release --no-codesign --dart-define=VERSION=${GITHUB_REF#refs/tags/v}
+      - run: mv build/ios/iphoneos/Runner.app lazypig-ios.app
+      - run: tar cfv lazypig-ios.app.zip lazypig-ios.app
       -
         name: Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            lazypig-ios.tar
+            lazypig-ios.app.zip

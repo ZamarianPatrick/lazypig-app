@@ -19,7 +19,6 @@ jobs:
       - run: flutter config --enable-windows-desktop
       - run: flutter pub get
       - run: flutter build windows --release --dart-define=VERSION=${GITHUB_REF#refs/tags/v}
-      - run: flutter pub run msix:create
       - run: move build\windows\runner\Release lazypig-windows
       - run: tar.exe -a -c -f lazypig-windows.zip lazypig-windows
 
