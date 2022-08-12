@@ -68,7 +68,9 @@ class AboutView extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'App Version: 1.17',
+                    'App Version: ' +
+                        const String.fromEnvironment('VERSION',
+                            defaultValue: 'dev'),
                     style: TextStyle(fontSize: fontSize),
                   )
                 ],
