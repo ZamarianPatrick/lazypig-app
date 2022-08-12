@@ -22,10 +22,10 @@ jobs:
           flutter-version: '3.0.5'
       - run: flutter pub get
       - run: flutter build apk --dart-define=VERSION=${GITHUB_REF#refs/tags/v}
-
+      - run: mv build/app/outputs/flutter-apk/app-release.apk lazypig-android.apk
       -
-        name: Step 3 - Use the Upload Artifact GitHub Action
-        uses: actions/upload-artifact@v2
+        name: Release
+        uses: softprops/action-gh-release@v1
         with:
-          name: lazypig-android.apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          files: |
+            lazypig-android.apk

@@ -19,10 +19,10 @@ jobs:
           architecture: x64
       - run: flutter pub get
       - run: flutter build ios --release --no-codesign --dart-define=VERSION=${GITHUB_REF#refs/tags/v}
-
+      - run: mv /Users/runner/work/lazypig-app/lazypig-app/build/ios/iphoneos/Runner.app lazypig-ios.app
       -
-      name: Step 3 - Use the Upload Artifact GitHub Action
-      uses: actions/upload-artifact@v2
-      with:
-        name: lazypig-ios.app
-        path: /Users/runner/work/lazypig-app/lazypig-app/build/ios/iphoneos/Runner.app
+        name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            lazypig-ios.app

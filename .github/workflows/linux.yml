@@ -22,10 +22,11 @@ jobs:
       - run: flutter config --enable-linux-desktop
       - run: flutter pub get
       - run: flutter build linux --dart-define=VERSION=${GITHUB_REF#refs/tags/v}
+      - run: mv build/linux/x64/release/bundle lazypig-linux
 
       -
-        name: Step 3 - Use the Upload Artifact GitHub Action
-        uses: actions/upload-artifact@v2
+        name: Release
+        uses: softprops/action-gh-release@v1
         with:
-          name: lazypig
-          path: build/linux/x64/release/bundle/lazy_pig
+          files: |
+            lazypig-linux
