@@ -18,13 +18,14 @@ jobs:
           flutter-version: '3.0.5'
       - run: flutter config --enable-windows-desktop
       - run: flutter pub get
-      - run: flutter build windows --dart-define=VERSION=${GITHUB_REF#refs/tags/v}
+      - run: flutter build windows --release --dart-define=VERSION=${GITHUB_REF#refs/tags/v}
       - run: flutter pub run msix:create
       - run: move build\windows\runner\Release lazypig-windows
+      - run: tar.exe -a -c -f lazypig-windows.zip lazypig-windows
 
       -
         name: Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            lazypig-windows
+            lazypig-windows.zip

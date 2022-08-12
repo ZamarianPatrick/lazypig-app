@@ -21,7 +21,7 @@ jobs:
         with:
           flutter-version: '3.0.5'
       - run: flutter pub get
-      - run: flutter build apk --dart-define=VERSION=${GITHUB_REF#refs/tags/v}
+      - run: flutter build apk --release --dart-define=VERSION=${GITHUB_REF#refs/tags/v}
       - run: mv build/app/outputs/flutter-apk/app-release.apk lazypig-android.apk
       -
         name: Release

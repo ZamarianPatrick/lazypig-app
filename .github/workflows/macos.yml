@@ -18,12 +18,24 @@ jobs:
           flutter-version: '3.0.5'
       - run: flutter config --enable-macos-desktop
       - run: flutter pub get
-      - run: flutter build macos --dart-define=VERSION=${GITHUB_REF#refs/tags/v}
-      - run: mv build/macos/Build/Products/Release/lazy_pig.app lazypig-macos.app
+      - run: flutter build macos --release --dart-define=VERSION=${GITHUB_REF#refs/tags/v}
+      - run: mv build/macos/Build/Products/Release/ lazypig-macos
+
+      -
+        name: Create a dmg
+        run: |
+          brew install create-dmg
+          cd lazypig-macos
+          create-dmg \
+            --volname "LazyPig" \
+            --hide-extension "lazy_pig.app"
+            --hdiutil-quiet \
+            "lazy_pig.dmg"
+            "lazy_pig.app"
 
       -
         name: Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            lazypig-macos.app
+            lazypig-macos/lazy_pig.dmg
