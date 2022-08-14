@@ -31,7 +31,7 @@ class ConnectView extends StatelessWidget {
                           TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                     ),
                   ),
-                  Image.asset('assets/images/plant-icon.png'),
+                  Image.asset('assets/images/logo-brand.png'),
                   FractionallySizedBox(
                     widthFactor: 0.6,
                     child: TextField(
